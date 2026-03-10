@@ -1,4 +1,0 @@
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-f', 'backend/Dockerfile', '-t', 'gcr.io/bmika-cfcd/prisma-chat', '.']
-images: ['gcr.io/bmika-cfcd/prisma-chat']
