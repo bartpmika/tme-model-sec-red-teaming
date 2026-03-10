@@ -53,8 +53,7 @@ echo "Creating backend service..."
 gcloud compute backend-services create "$BACKEND_NAME" \
     --project "$PROJECT_ID" \
     --global \
-    --load-balancing-scheme EXTERNAL_MANAGED \
-    --security-policy "$POLICY_NAME"
+    --load-balancing-scheme EXTERNAL_MANAGED
 
 gcloud compute backend-services add-backend "$BACKEND_NAME" \
     --project "$PROJECT_ID" \
@@ -62,13 +61,39 @@ gcloud compute backend-services add-backend "$BACKEND_NAME" \
     --network-endpoint-group "$NEG_NAME" \
     --network-endpoint-group-region "$REGION"
 
-echo "Creating URL map and HTTPS proxy..."
+gcloud compute backend-services update "$BACKEND_NAME" \
+    --project "$PROJECT_ID" \
+    --global \
+    --security-policy "$POLICY_NAME"
+
+echo "Enabling IAP on backend service..."
+gcloud compute backend-services update "$BACKEND_NAME" \
+    --project "$PROJECT_ID" \
+    --global \
+    --iap=enabled
+
+echo "Creating URL map and HTTP proxy..."
 gcloud compute url-maps create "$URL_MAP_NAME" \
     --project "$PROJECT_ID" \
     --default-service "$BACKEND_NAME"
 
-# Note: You need an SSL certificate. Create one with:
-# gcloud compute ssl-certificates create prisma-chat-cert --domains YOUR_DOMAIN
-echo "Create an SSL certificate and then run:"
-echo "  gcloud compute target-https-proxies create $PROXY_NAME --url-map $URL_MAP_NAME --ssl-certificates YOUR_CERT"
-echo "  gcloud compute forwarding-rules create $FWD_RULE_NAME --global --target-https-proxy $PROXY_NAME --ports 443"
+echo "Creating HTTP proxy and forwarding rule..."
+gcloud compute target-http-proxies create "${PROXY_NAME}-http" \
+    --project "$PROJECT_ID" \
+    --url-map "$URL_MAP_NAME"
+
+gcloud compute addresses create prisma-chat-ip \
+    --project "$PROJECT_ID" \
+    --global
+
+gcloud compute forwarding-rules create "$FWD_RULE_NAME" \
+    --project "$PROJECT_ID" \
+    --global \
+    --target-http-proxy "${PROXY_NAME}-http" \
+    --ports 80 \
+    --address prisma-chat-ip \
+    --load-balancing-scheme EXTERNAL_MANAGED
+
+LB_IP=$(gcloud compute addresses describe prisma-chat-ip --project "$PROJECT_ID" --global --format="value(address)")
+echo "Load balancer IP: $LB_IP"
+echo "Cloud Armor + IAP are active. Access via browser at http://$LB_IP"

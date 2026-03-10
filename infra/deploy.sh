@@ -6,13 +6,14 @@ PROJECT_ID="${GCP_PROJECT:-bmika-cfcd}"
 REGION="${GCP_REGION:-us-west1}"
 SERVICE_NAME="prisma-chat"
 SERVICE_ACCOUNT="chat-app-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+VERTEX_ENDPOINT_ID="${VERTEX_ENDPOINT_ID:-5231372970865197056}"
 IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Build from project root
 cd "$(dirname "$0")/.."
 
 echo "Building container image..."
-gcloud builds submit --tag "$IMAGE" --project "$PROJECT_ID"
+gcloud builds submit --config cloudbuild.yaml --project "$PROJECT_ID" .
 
 echo "Deploying to Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
@@ -20,7 +21,7 @@ gcloud run deploy "$SERVICE_NAME" \
     --region "$REGION" \
     --project "$PROJECT_ID" \
     --service-account "$SERVICE_ACCOUNT" \
-    --ingress internal-and-cloud-load-balancing \
+    --ingress all \
     --set-env-vars "GCP_PROJECT=${PROJECT_ID},GCP_REGION=${REGION},VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}" \
     --memory 512Mi \
     --timeout 120 \
