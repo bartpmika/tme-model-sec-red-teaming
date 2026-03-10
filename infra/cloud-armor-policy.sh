@@ -19,7 +19,7 @@ gcloud compute firewall-rules create "$RULE_NAME" \
     --project "$PROJECT_ID" \
     --direction INGRESS \
     --action ALLOW \
-    --rules tcp:80,tcp:8080 \
+    --rules tcp:80 \
     --source-ranges "$ALLOWED_IPS" \
     --target-tags "$TAG" \
     --network bmika-tme-model-sec-red-teaming \
