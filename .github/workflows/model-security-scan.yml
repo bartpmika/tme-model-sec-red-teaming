@@ -1,0 +1,49 @@
+name: Model Security Scan
+
+on:
+  push:
+    paths:
+      - 'model-config.json'
+  pull_request:
+    paths:
+      - 'model-config.json'
+
+jobs:
+  scan-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read model config
+        id: config
+        run: |
+          MODEL_NAME=$(jq -r '.model_name' model-config.json)
+          MODEL_URI=$(jq -r '.model_uri' model-config.json)
+          echo "model_name=$MODEL_NAME" >> "$GITHUB_OUTPUT"
+          echo "model_uri=$MODEL_URI" >> "$GITHUB_OUTPUT"
+          echo "Scanning model: $MODEL_NAME ($MODEL_URI)"
+
+      - name: Install model-security SDK
+        env:
+          MODEL_SECURITY_CLIENT_ID: ${{ secrets.MODEL_SECURITY_CLIENT_ID }}
+          MODEL_SECURITY_CLIENT_SECRET: ${{ secrets.MODEL_SECURITY_CLIENT_SECRET }}
+          TSG_ID: ${{ secrets.TSG_ID }}
+          MODEL_SECURITY_API_ENDPOINT: https://api.sase.paloaltonetworks.com/aims
+        run: |
+          PYPI_URL=$(bash scripts/script.sh)
+          pip install model-security-client --extra-index-url "$PYPI_URL"
+
+      - name: Run model-security scan
+        env:
+          MODEL_SECURITY_CLIENT_ID: ${{ secrets.MODEL_SECURITY_CLIENT_ID }}
+          MODEL_SECURITY_CLIENT_SECRET: ${{ secrets.MODEL_SECURITY_CLIENT_SECRET }}
+          TSG_ID: ${{ secrets.TSG_ID }}
+          MODEL_SECURITY_API_ENDPOINT: https://api.sase.paloaltonetworks.com/aims
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          model-security scan \
+            --model-uri "${{ steps.config.outputs.model_uri }}" \
+            --security-group-uuid "${{ secrets.SECURITY_GROUP_UUID }}"

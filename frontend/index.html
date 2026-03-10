@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisma Chat</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="bg"></div>
+
+    <main>
+        <section class="hero">
+            <h1>Prisma Chat</h1>
+            <p class="tagline">AI-powered assistant &mdash; ask anything</p>
+        </section>
+
+        <section class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant">
+                    <div class="bubble">Hello! How can I help you today?</div>
+                </div>
+            </div>
+            <form class="chat-input" id="chatForm">
+                <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" required>
+                <button type="submit" id="sendBtn">Send</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="js/background.js"></script>
+    <script src="js/chat.js"></script>
+</body>
+</html>
