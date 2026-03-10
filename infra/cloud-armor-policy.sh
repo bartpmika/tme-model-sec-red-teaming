@@ -7,7 +7,7 @@ RULE_NAME="allow-tme-model-sec-red-teaming"
 TAG="tme-model-sec-red-teaming"
 
 # IPs to allow
-ALLOWED_IPS="199.167.52.5/32,66.8.253.50/32"
+ALLOWED_IPS="199.167.52.5/32,66.8.253.50/32,35.197.73.227/32,104.198.97.107/32,136.117.114.204/32"
 
 echo "Creating firewall rule ${RULE_NAME}..."
 
