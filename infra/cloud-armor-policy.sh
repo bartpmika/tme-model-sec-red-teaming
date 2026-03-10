@@ -3,8 +3,8 @@
 set -euo pipefail
 
 PROJECT_ID="${GCP_PROJECT:-bmika-cfcd}"
-RULE_NAME="allow-prisma-chat"
-TAG="prisma-chat-server"
+RULE_NAME="allow-tme-model-sec-red-teaming"
+TAG="tme-model-sec-red-teaming"
 
 # IPs to allow
 ALLOWED_IPS="199.167.52.5/32,66.8.253.50/32"
@@ -22,7 +22,8 @@ gcloud compute firewall-rules create "$RULE_NAME" \
     --rules tcp:80,tcp:8080 \
     --source-ranges "$ALLOWED_IPS" \
     --target-tags "$TAG" \
-    --description "Allow specific IPs to access Prisma Chat VM"
+    --network bmika-tme-model-sec-red-teaming \
+    --description "Allow specific IPs to access TME Model Sec Red Teaming VM"
 
 echo "Firewall rule created. Allowed IPs: ${ALLOWED_IPS}"
 echo "Targets VMs with network tag: ${TAG}"

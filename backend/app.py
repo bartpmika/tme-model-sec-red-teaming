@@ -12,6 +12,8 @@ GCP_PROJECT = os.environ.get("GCP_PROJECT", "bmika-cfcd")
 GCP_REGION = os.environ.get("GCP_REGION", "us-west1")
 VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID", "")
 
+SYSTEM_PROMPT = "You are a helpful assistant. Keep every response to 3 sentences or fewer."
+
 
 def get_vertex_prediction(messages):
     """Send messages to the Vertex AI endpoint and return the response."""
@@ -95,6 +97,8 @@ def chat():
         messages = [{"role": "user", "content": data["message"]}]
     else:
         return jsonify({"error": "Provide 'message' or 'messages'"}), 400
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
 
     try:
         response_text = get_vertex_prediction(messages)

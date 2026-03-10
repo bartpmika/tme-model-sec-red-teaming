@@ -2,7 +2,7 @@
 # VM startup script — installs dependencies and configures systemd service
 set -euo pipefail
 
-APP_DIR="/opt/prisma-chat"
+APP_DIR="/opt/tme-model-sec-red-teaming"
 
 # Install system packages
 apt-get update -qq
@@ -27,9 +27,9 @@ GCP_REGION=$(curl -sf -H "$META_HEADER" "$META_URL/GCP_REGION" || echo "")
 VERTEX_ENDPOINT_ID=$(curl -sf -H "$META_HEADER" "$META_URL/VERTEX_ENDPOINT_ID" || echo "")
 
 # Write systemd unit
-cat > /etc/systemd/system/prisma-chat.service <<EOF
+cat > /etc/systemd/system/tme-model-sec-red-teaming.service <<EOF
 [Unit]
-Description=Prisma Chat App
+Description=TME Model Sec Red Teaming App
 After=network.target
 
 [Service]
@@ -47,5 +47,5 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable prisma-chat.service
-systemctl restart prisma-chat.service
+systemctl enable tme-model-sec-red-teaming.service
+systemctl restart tme-model-sec-red-teaming.service
