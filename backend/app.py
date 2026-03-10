@@ -31,7 +31,7 @@ def get_vertex_prediction(messages):
     # Format for HuggingFace TGI on Vertex AI
     prompt = format_chat_prompt(messages)
     payload = {
-        "instances": [{"inputs": prompt, "parameters": {"max_new_tokens": 512}}]
+        "instances": [{"inputs": prompt, "parameters": {"max_new_tokens": 150}}]
     }
 
     resp = requests.post(
@@ -90,15 +90,21 @@ def chat():
     if not data:
         return jsonify({"error": "Request body required"}), 400
 
-    # Support both single message and messages array
+    # Extract only the latest user message (no conversation history)
     if "messages" in data:
-        messages = data["messages"]
+        user_msgs = [m for m in data["messages"] if m.get("role") == "user"]
+        if not user_msgs:
+            return jsonify({"error": "No user message found"}), 400
+        user_text = user_msgs[-1].get("content", "")
     elif "message" in data:
-        messages = [{"role": "user", "content": data["message"]}]
+        user_text = data["message"]
     else:
         return jsonify({"error": "Provide 'message' or 'messages'"}), 400
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_text},
+    ]
 
     try:
         response_text = get_vertex_prediction(messages)

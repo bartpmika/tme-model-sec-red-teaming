@@ -3,8 +3,6 @@
     var input = document.getElementById("chatInput");
     var messages = document.getElementById("chatMessages");
     var sendBtn = document.getElementById("sendBtn");
-    var history = [];
-
     function addMessage(role, text) {
         var wrapper = document.createElement("div");
         wrapper.className = "message " + role;
@@ -22,20 +20,18 @@
         if (!text) return;
 
         addMessage("user", text);
-        history.push({ role: "user", content: text });
         input.value = "";
         sendBtn.disabled = true;
 
         fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: history }),
+            body: JSON.stringify({ message: text }),
         })
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var reply = data.response || data.error || "No response";
                 addMessage("assistant", reply);
-                history.push({ role: "assistant", content: reply });
             })
             .catch(function () {
                 addMessage("assistant", "Error: could not reach the server.");
