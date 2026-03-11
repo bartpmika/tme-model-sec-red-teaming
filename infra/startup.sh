@@ -24,8 +24,6 @@ META_URL="http://metadata.google.internal/computeMetadata/v1/instance/attributes
 META_HEADER="Metadata-Flavor: Google"
 GCP_PROJECT=$(curl -sf -H "$META_HEADER" "$META_URL/GCP_PROJECT" || echo "")
 GCP_REGION=$(curl -sf -H "$META_HEADER" "$META_URL/GCP_REGION" || echo "")
-VERTEX_ENDPOINT_ID=$(curl -sf -H "$META_HEADER" "$META_URL/VERTEX_ENDPOINT_ID" || echo "")
-
 # Write systemd unit
 cat > /etc/systemd/system/tme-model-sec-red-teaming.service <<EOF
 [Unit]
@@ -38,7 +36,6 @@ WorkingDirectory=${APP_DIR}
 ExecStart=${APP_DIR}/venv/bin/gunicorn --bind 0.0.0.0:80 --workers 2 --timeout 120 backend.app:app
 Environment=GCP_PROJECT=${GCP_PROJECT}
 Environment=GCP_REGION=${GCP_REGION}
-Environment=VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}
 Restart=always
 RestartSec=5
 

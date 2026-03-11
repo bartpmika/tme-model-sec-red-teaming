@@ -4,34 +4,40 @@ import json
 import google.auth
 import google.auth.transport.requests
 import requests
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
 
 app = Flask(__name__, static_folder="../frontend")
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT", "bmika-cfcd")
 GCP_REGION = os.environ.get("GCP_REGION", "us-west1")
-VERTEX_ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID", "")
+GEMINI_REGION = os.environ.get("GEMINI_REGION", "us-central1")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 SYSTEM_PROMPT = "You are a helpful assistant. Keep every response to 3 sentences or fewer."
 
 
-def get_vertex_prediction(messages):
-    """Send messages to the Vertex AI endpoint and return the response."""
+def _get_credentials():
     credentials, _ = google.auth.default(
         scopes=["https://www.googleapis.com/auth/cloud-platform"]
     )
     credentials.refresh(google.auth.transport.requests.Request())
+    return credentials
+
+
+def stream_gemini(user_text):
+    """Stream tokens from Gemini via Vertex AI streamGenerateContent."""
+    credentials = _get_credentials()
 
     endpoint_url = (
-        f"https://{GCP_REGION}-aiplatform.googleapis.com/v1/"
-        f"projects/{GCP_PROJECT}/locations/{GCP_REGION}/"
-        f"endpoints/{VERTEX_ENDPOINT_ID}:predict"
+        f"https://{GEMINI_REGION}-aiplatform.googleapis.com/v1/"
+        f"projects/{GCP_PROJECT}/locations/{GEMINI_REGION}/"
+        f"publishers/google/models/{GEMINI_MODEL}:streamGenerateContent?alt=sse"
     )
 
-    # Format for HuggingFace TGI on Vertex AI
-    prompt = format_chat_prompt(messages)
     payload = {
-        "instances": [{"inputs": prompt, "parameters": {"max_new_tokens": 150}}]
+        "contents": [{"role": "user", "parts": [{"text": user_text}]}],
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "generationConfig": {"maxOutputTokens": 150},
     }
 
     resp = requests.post(
@@ -41,32 +47,35 @@ def get_vertex_prediction(messages):
             "Authorization": f"Bearer {credentials.token}",
             "Content-Type": "application/json",
         },
-        timeout=60,
+        timeout=120,
+        stream=True,
     )
-    resp.raise_for_status()
-    data = resp.json()
 
-    # Extract generated text from Vertex AI response
-    predictions = data.get("predictions", [])
-    if predictions:
-        return predictions[0] if isinstance(predictions[0], str) else str(predictions[0])
-    return "No response generated."
+    if not resp.ok:
+        app.logger.error("Gemini error (%s): %s", resp.status_code, resp.text[:500])
+        yield f"data: {json.dumps({'error': 'Model inference failed'})}\n\n"
+        yield "data: [DONE]\n\n"
+        return
 
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line or not line.startswith("data:"):
+            continue
+        data_str = line[len("data:"):].strip()
+        if not data_str:
+            continue
+        try:
+            chunk = json.loads(data_str)
+            candidates = chunk.get("candidates", [])
+            for candidate in candidates:
+                parts = candidate.get("content", {}).get("parts", [])
+                for part in parts:
+                    text = part.get("text", "")
+                    if text:
+                        yield f"data: {json.dumps({'token': text})}\n\n"
+        except json.JSONDecodeError:
+            continue
 
-def format_chat_prompt(messages):
-    """Format messages into TinyLlama chat template."""
-    prompt = ""
-    for msg in messages:
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-        if role == "system":
-            prompt += f"<|system|>\n{content}</s>\n"
-        elif role == "user":
-            prompt += f"<|user|>\n{content}</s>\n"
-        elif role == "assistant":
-            prompt += f"<|assistant|>\n{content}</s>\n"
-    prompt += "<|assistant|>\n"
-    return prompt
+    yield "data: [DONE]\n\n"
 
 
 @app.route("/")
@@ -90,7 +99,6 @@ def chat():
     if not data:
         return jsonify({"error": "Request body required"}), 400
 
-    # Extract only the latest user message (no conversation history)
     if "messages" in data:
         user_msgs = [m for m in data["messages"] if m.get("role") == "user"]
         if not user_msgs:
@@ -101,17 +109,12 @@ def chat():
     else:
         return jsonify({"error": "Provide 'message' or 'messages'"}), 400
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_text},
-    ]
-
     try:
-        response_text = get_vertex_prediction(messages)
-        return jsonify({"response": response_text})
-    except requests.exceptions.HTTPError as e:
-        app.logger.error("Vertex AI error: %s", e.response.text if e.response else e)
-        return jsonify({"error": "Model inference failed"}), 502
+        return Response(
+            stream_with_context(stream_gemini(user_text)),
+            content_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
     except Exception as e:
         app.logger.error("Unexpected error: %s", e)
         return jsonify({"error": "Internal server error"}), 500
