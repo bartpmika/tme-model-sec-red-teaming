@@ -64,13 +64,6 @@ until k3s kubectl get nodes 2>/dev/null | grep -q ' Ready'; do
 done
 echo "k3s is ready."
 
-# ── Add host.k3s.internal DNS so pods can reach the host Flask app ──
-NODE_IP=$(k3s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-k3s kubectl -n kube-system patch configmap coredns --type merge \
-    -p "{\"data\":{\"NodeHosts\":\"${NODE_IP} $(hostname) host.k3s.internal\n\"}}"
-k3s kubectl -n kube-system rollout restart deployment coredns
-k3s kubectl -n kube-system rollout status deployment coredns --timeout=60s
-
 # ── Fetch PANW secrets from GCP Secret Manager ──
 REGISTRY_USER=$(gcloud secrets versions access latest --secret=panw-registry-username --project="$GCP_PROJECT")
 REGISTRY_PASS=$(gcloud secrets versions access latest --secret=panw-registry-password --project="$GCP_PROJECT")
