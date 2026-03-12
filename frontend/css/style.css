@@ -28,18 +28,6 @@ body {
     inset: 0;
     z-index: 0;
     background: var(--bg-primary);
-    transition: background 0.3s ease;
-}
-
-@media (hover: none) {
-    #bg {
-        animation: gradientShift 8s ease infinite alternate;
-    }
-    @keyframes gradientShift {
-        0%   { background: radial-gradient(circle at 30% 40%, #1a1040, #0a0a1a 70%); }
-        50%  { background: radial-gradient(circle at 70% 60%, #0d1a3a, #0a0a1a 70%); }
-        100% { background: radial-gradient(circle at 50% 30%, #1a1040, #0a0a1a 70%); }
-    }
 }
 
 main {
@@ -81,8 +69,8 @@ main {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px) brightness(0.5);
+    -webkit-backdrop-filter: blur(20px) brightness(0.5);
     overflow: hidden;
     min-height: 400px;
     max-height: 70vh;
