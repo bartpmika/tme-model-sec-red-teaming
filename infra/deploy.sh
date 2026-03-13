@@ -69,5 +69,5 @@ EXTERNAL_IP=$(gcloud compute instances describe "$VM_NAME" \
     --project "$PROJECT_ID" \
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
 
-echo "VM deployed at: http://${EXTERNAL_IP}"
+echo "VM deployed at: https://tensorglass.com"
 echo "Ensure firewall rule exists (run infra/cloud-armor-policy.sh)"

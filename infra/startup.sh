@@ -6,7 +6,7 @@ APP_DIR="/opt/tme-model-sec-red-teaming"
 
 # Install system packages
 apt-get update -qq
-apt-get install -y -qq python3 python3-pip python3-venv nginx > /dev/null
+apt-get install -y -qq python3 python3-pip python3-venv nginx certbot python3-certbot-dns-google > /dev/null
 
 # Create app directory and venv
 mkdir -p "$APP_DIR"
@@ -65,14 +65,19 @@ systemctl daemon-reload
 systemctl enable tme-model-sec-red-teaming.service
 systemctl restart tme-model-sec-red-teaming.service
 
-# ── TLS via nginx reverse proxy ──
-CERT_DIR="/etc/nginx/ssl"
-if [ ! -f "$CERT_DIR/selfsigned.crt" ]; then
-    mkdir -p "$CERT_DIR"
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout "$CERT_DIR/selfsigned.key" \
-        -out "$CERT_DIR/selfsigned.crt" \
-        -subj "/CN=tme-model-sec-red-teaming" 2>/dev/null
+# ── TLS via Let's Encrypt (DNS-01 challenge) ──
+DOMAIN="tensorglass.com"
+CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+
+if [ ! -f "$CERT_PATH" ]; then
+    certbot certonly \
+        --dns-google \
+        -d "$DOMAIN" \
+        --non-interactive \
+        --agree-tos \
+        --register-unsafely-without-email \
+        --keep-until-expiring
 fi
 
 cat > /etc/nginx/sites-available/tme-model-sec-red-teaming <<'NGINX'
@@ -84,8 +89,8 @@ server {
 server {
     listen 443 ssl default_server;
 
-    ssl_certificate     /etc/nginx/ssl/selfsigned.crt;
-    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_certificate     /etc/letsencrypt/live/tensorglass.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tensorglass.com/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
     location / {
