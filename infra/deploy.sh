@@ -7,7 +7,6 @@ ZONE="${GCP_ZONE:-us-west1-b}"
 REGION="${GCP_REGION:-us-west1}"
 VM_NAME="tme-model-sec-red-teaming-vm"
 SERVICE_ACCOUNT="chat-app-sa@${PROJECT_ID}.iam.gserviceaccount.com"
-VERTEX_ENDPOINT_ID="${VERTEX_ENDPOINT_ID:-5231372970865197056}"
 MACHINE_TYPE="e2-medium"
 TAG="tme-model-sec-red-teaming"
 NETWORK="bmika-tme-model-sec-red-teaming"
@@ -31,7 +30,7 @@ else
         --subnet "$SUBNET" \
         --image-family debian-12 \
         --image-project debian-cloud \
-        --metadata "GCP_PROJECT=${PROJECT_ID},GCP_REGION=${REGION},VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}" \
+        --metadata "GCP_PROJECT=${PROJECT_ID},GCP_REGION=${REGION}" \
         --metadata-from-file startup-script=infra/startup.sh
 
     echo "Waiting for VM to boot and run startup script..."
