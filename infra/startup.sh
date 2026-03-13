@@ -6,7 +6,7 @@ APP_DIR="/opt/tme-model-sec-red-teaming"
 
 # Install system packages
 apt-get update -qq
-apt-get install -y -qq python3 python3-pip python3-venv > /dev/null
+apt-get install -y -qq python3 python3-pip python3-venv nginx > /dev/null
 
 # Create app directory and venv
 mkdir -p "$APP_DIR"
@@ -24,28 +24,84 @@ META_URL="http://metadata.google.internal/computeMetadata/v1/instance/attributes
 META_HEADER="Metadata-Flavor: Google"
 GCP_PROJECT=$(curl -sf -H "$META_HEADER" "$META_URL/GCP_PROJECT" || echo "")
 GCP_REGION=$(curl -sf -H "$META_HEADER" "$META_URL/GCP_REGION" || echo "")
+
+# Fetch app auth secrets from GCP Secret Manager (uses printf to preserve $ in hashes)
+APP_SECRET_KEY=$(gcloud secrets versions access latest --secret=app-secret-key --project="$GCP_PROJECT")
+APP_USERNAME=$(gcloud secrets versions access latest --secret=app-auth-username --project="$GCP_PROJECT")
+APP_PASSWORD_HASH=$(gcloud secrets versions access latest --secret=app-auth-password-hash --project="$GCP_PROJECT")
+OAUTH_CLIENT_ID_VAL=$(gcloud secrets versions access latest --secret=oauth-client-id --project="$GCP_PROJECT")
+OAUTH_CLIENT_SECRET_VAL=$(gcloud secrets versions access latest --secret=oauth-client-secret --project="$GCP_PROJECT")
+
+# Write env file (EnvironmentFile avoids systemd $ interpolation issues)
+ENV_FILE="${APP_DIR}/app.env"
+printf 'GCP_PROJECT=%s\n' "$GCP_PROJECT" > "$ENV_FILE"
+printf 'GCP_REGION=%s\n' "$GCP_REGION" >> "$ENV_FILE"
+printf 'APP_SECRET_KEY=%s\n' "$APP_SECRET_KEY" >> "$ENV_FILE"
+printf 'APP_USERNAME=%s\n' "$APP_USERNAME" >> "$ENV_FILE"
+printf 'APP_PASSWORD_HASH=%s\n' "$APP_PASSWORD_HASH" >> "$ENV_FILE"
+printf 'OAUTH_CLIENT_ID=%s\n' "$OAUTH_CLIENT_ID_VAL" >> "$ENV_FILE"
+printf 'OAUTH_CLIENT_SECRET=%s\n' "$OAUTH_CLIENT_SECRET_VAL" >> "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
 # Write systemd unit
-cat > /etc/systemd/system/tme-model-sec-red-teaming.service <<EOF
+cat > /etc/systemd/system/tme-model-sec-red-teaming.service <<'UNIT'
 [Unit]
 Description=TME Model Sec Red Teaming App
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=${APP_DIR}
-ExecStart=${APP_DIR}/venv/bin/gunicorn --bind 0.0.0.0:80 --workers 2 --timeout 120 backend.app:app
-Environment=GCP_PROJECT=${GCP_PROJECT}
-Environment=GCP_REGION=${GCP_REGION}
+WorkingDirectory=/opt/tme-model-sec-red-teaming
+ExecStart=/opt/tme-model-sec-red-teaming/venv/bin/gunicorn --bind 127.0.0.1:8080 --workers 2 --timeout 120 backend.app:app
+EnvironmentFile=/opt/tme-model-sec-red-teaming/app.env
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-EOF
+UNIT
 
 systemctl daemon-reload
 systemctl enable tme-model-sec-red-teaming.service
 systemctl restart tme-model-sec-red-teaming.service
+
+# ── TLS via nginx reverse proxy ──
+CERT_DIR="/etc/nginx/ssl"
+if [ ! -f "$CERT_DIR/selfsigned.crt" ]; then
+    mkdir -p "$CERT_DIR"
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "$CERT_DIR/selfsigned.key" \
+        -out "$CERT_DIR/selfsigned.crt" \
+        -subj "/CN=tme-model-sec-red-teaming" 2>/dev/null
+fi
+
+cat > /etc/nginx/sites-available/tme-model-sec-red-teaming <<'NGINX'
+server {
+    listen 80 default_server;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+
+    ssl_certificate     /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+    }
+}
+NGINX
+
+rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/tme-model-sec-red-teaming /etc/nginx/sites-enabled/
+nginx -t && systemctl enable nginx && systemctl restart nginx
 
 # ── k3s installation (Traefik disabled to avoid port 80 conflict) ──
 if ! command -v k3s &>/dev/null; then

@@ -43,11 +43,12 @@
         });
     }
 
-    function drawOrb(c, ox, oy, o, hue, alphaScale) {
+    function drawOrb(c, ox, oy, o, hue, alphaScale, sat) {
         var a = o.alpha * alphaScale;
+        var s = sat !== undefined ? sat : 70;
         var grad = c.createRadialGradient(ox, oy, 0, ox, oy, o.r);
-        grad.addColorStop(0, "hsla(" + hue + ",70%,60%," + a + ")");
-        grad.addColorStop(1, "hsla(" + hue + ",70%,60%,0)");
+        grad.addColorStop(0, "hsla(" + hue + "," + s + "%,60%," + a + ")");
+        grad.addColorStop(1, "hsla(" + hue + "," + s + "%,60%,0)");
         c.beginPath();
         c.arc(ox, oy, o.r, 0, Math.PI * 2);
         c.fillStyle = grad;
@@ -96,7 +97,7 @@
             drawOrb(ctx, o.x, o.y, o, 200, 1);
 
             // Darker purple on overlay
-            drawOrb(ctx2, o.x - rect.left, o.y - rect.top, o, 270, 0.6);
+            drawOrb(ctx2, o.x - rect.left, o.y - rect.top, o, 0, 0.3, 0);
         }
         requestAnimationFrame(animate);
     }

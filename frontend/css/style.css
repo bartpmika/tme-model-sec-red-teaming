@@ -11,7 +11,7 @@
     --text-primary: #e8e8f0;
     --text-secondary: #9090b0;
     --accent: #6c63ff;
-    --user-bubble: rgba(108, 99, 255, 0.2);
+    --user-bubble: rgba(70, 130, 220, 0.15);
     --assistant-bubble: rgba(255, 255, 255, 0.07);
 }
 
@@ -50,7 +50,7 @@ main {
     font-size: 2.4rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #6c63ff, #48c6ef);
+    background: linear-gradient(135deg, #4682dc, #48c6ef);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -60,6 +60,24 @@ main {
     color: var(--text-secondary);
     margin-top: 0.5rem;
     font-size: 1.05rem;
+}
+
+.logout-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
 }
 
 .chat-container {
@@ -108,7 +126,7 @@ main {
 
 .message.user .bubble {
     background: var(--user-bubble);
-    border: 1px solid rgba(108, 99, 255, 0.3);
+    border: 1px solid rgba(70, 130, 220, 0.3);
 }
 
 .message.assistant .bubble {
@@ -137,7 +155,7 @@ main {
 }
 
 .chat-input input:focus {
-    border-color: var(--accent);
+    border-color: rgba(70, 130, 220, 0.5);
 }
 
 .chat-input button {
